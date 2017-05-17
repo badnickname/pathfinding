@@ -11,10 +11,25 @@ private:
     sf::RenderWindow app;
     std::string title;
     int width, height;
+
+    sf::Font font;
     sf::Texture tileList;
 
     Cell ***cell;
     int cols, rows;
+    int size;
+
+    int isStartSet;
+    int isFinishSet;
+
+    int drawText(std::string,int,int,int);
+    int drawColsRows();
+    int drawSprites(int);
+    std::string toString(int);
+
+    int onMouseRelease(sf::Mouse::Button, int, int);
+    int onMousePress(sf::Mouse::Button, int, int);
+    int onMouse(int, int);
 public:
     Window(int, int, std::string);
     int mainLoop();
