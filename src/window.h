@@ -21,12 +21,21 @@ private:
 
     int isStartSet;
     int isFinishSet;
+    int isBeginAnalysis;
+    int isProcedCells;
+    Cell* previousCell;
 
     int drawText(std::string,int,int,int);
     int drawColsRows();
     int drawSprites(int);
-    std::string toString(int);
+    int procCells(int);
+    int startProc(int);
+    int findNextCell(int);
 
+    std::string toString(int);
+    Cell* compareCells(int, Cell*, Cell*);
+
+    int onKeyPressed(sf::Keyboard::Key);
     int onMouseRelease(sf::Mouse::Button, int, int);
     int onMousePress(sf::Mouse::Button, int, int);
     int onMouse(int, int);
