@@ -9,7 +9,6 @@ Window::Window(int w, int h, std::string t) {
 
     isStartSet = 0;
     isFinishSet = 0;
-    isBeginAnalysis = 0;
     isProcedCells = 0;
     previousCell = NULL;
 
@@ -42,9 +41,6 @@ int Window::mainLoop() {
             if (event.type == sf::Event::MouseButtonReleased)
                 onMouseRelease(event.mouseButton.button,
                                event.mouseButton.x, event.mouseButton.y);
-            if (event.type == sf::Event::MouseButtonPressed)
-                onMousePress(event.mouseButton.button,
-                               event.mouseButton.x, event.mouseButton.y);
             if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
                 sf::Vector2i pos = sf::Mouse::getPosition(app);
                 onMouse(pos.x,pos.y);
@@ -56,7 +52,6 @@ int Window::mainLoop() {
             if (isProcedCells == 1) {
                 isProcedCells = findNextCell(1);
             }
-            if (!isProcedCells && isBeginAnalysis) isProcedCells = procCells(1);
             startTime = currentTime;
         }
 
@@ -70,42 +65,54 @@ int Window::mainLoop() {
 }
 
 int Window::startProc(int border) {
-    isBeginAnalysis = 1;
-    for(int i = border; i<cols; i++) {
-        for(int j = border; j<rows; j++) {
-            if (cell[i][j]->getType() == "finish")
-                cell[i][j]->setAmount(0);
+    if (!isProcedCells) {
+        for(int i = border; i<cols; i++) {
+            for(int j = border; j<rows; j++) {
+                if (cell[i][j]->getType() == "finish")
+                    cell[i][j]->setAmount(0);
+            }
         }
+        isProcedCells = procCells(1);
     }
     return 0;
 }
 
+int Window::checkPlace(Cell *p,int takenAmount) {
+    int isProced = 1;
+    if (p->checkAmount() == -1) {
+        if (p->setAmount(takenAmount+1) == 0)
+            isProced = 0;
+    }
+    return isProced;
+}
+
 int Window::procCells(int border) {
     int isProced = 1;
-    for(int i = border; i<cols-1; i++) {
-        for(int j = border; j<rows-1; j++) {
-            int takenAmount = cell[i][j]->checkAmount();
-            if (takenAmount != -1) {
-                if (cell[i-1][j]->checkAmount() == -1) {
-                    if (cell[i-1][j]->setAmount(takenAmount+1) == 0)
-                        isProced = 0;
-                }
-                if (cell[i+1][j]->checkAmount() == -1) {
-                    if (cell[i+1][j]->setAmount(takenAmount+1) == 0)
-                        isProced = 0;
-                }
-                if (cell[i][j-1]->checkAmount() == -1) {
-                    if(cell[i][j-1]->setAmount(takenAmount+1) == 0)
-                        isProced = 0;
-                }
-                if (cell[i][j+1]->checkAmount() == -1) {
-                    if(cell[i][j+1]->setAmount(takenAmount+1) == 0)
-                        isProced = 0;
+    do {
+        isProced = 1;
+        for(int i = border; i<cols; i++) {
+            for(int j = border; j<rows; j++) {
+                int takenAmount = cell[i][j]->checkAmount();
+                if (takenAmount != -1) {
+                    int returned;
+                    if (i+1 < cols) {
+                        returned = checkPlace(cell[i+1][j],takenAmount);
+                        if (!returned) isProced = 0;
+                    }
+                    if (j+1 < rows) {
+                        returned = checkPlace(cell[i][j+1],takenAmount);
+                        if (!returned) isProced = 0;
+                    }
+                    returned = checkPlace(cell[i-1][j],takenAmount);
+                    if (!returned) isProced = 0;
+
+                    returned = checkPlace(cell[i][j-1],takenAmount);
+                    if (!returned) isProced = 0;
                 }
             }
         }
-    }
-    return isProced;
+    } while (!isProced);
+    return 1;
 }
 
 Cell* Window::compareCells(int min, Cell *mp, Cell *p) {
@@ -120,12 +127,12 @@ Cell* Window::compareCells(int min, Cell *mp, Cell *p) {
 
 int Window::findNextCell(int border) {
     int isProced = 1;
-    int breakCycle = 0;
-    for(int i = border; i<cols-1; i++) {
-        for(int j = border; j<rows-1; j++) {
+    for(int i = border; i<cols; i++) {
+        for(int j = border; j<rows; j++) {
 
             if ((cell[i][j]->getType() == "start") ||
                 (cell[i][j]->getType() == "current")) {
+
                 if (previousCell != NULL) {
                     previousCell->change("steped");
                 }
@@ -134,39 +141,40 @@ int Window::findNextCell(int border) {
                 minPointer = cell[i][j];
                 int minAmount = cell[i][j]->checkAmount();
 
-                minPointer = compareCells(minAmount, minPointer, cell[i-1][j]);
-                minAmount = minPointer->checkAmount();
-                minPointer = compareCells(minAmount, minPointer, cell[i+1][j]);
-                minAmount = minPointer->checkAmount();
+                if (i+1 < cols) {
+                    minPointer = compareCells(minAmount, minPointer, cell[i+1][j]);
+                    minAmount = minPointer->checkAmount();
+                }
+                if (j+1 < rows) {
+                    minPointer = compareCells(minAmount, minPointer, cell[i][j+1]);
+                    minAmount = minPointer->checkAmount();
+                }
                 minPointer = compareCells(minAmount, minPointer, cell[i][j-1]);
                 minAmount = minPointer->checkAmount();
-                minPointer = compareCells(minAmount, minPointer, cell[i][j+1]);
+                minPointer = compareCells(minAmount, minPointer, cell[i-1][j]);
 
                 if (minPointer->getType() == "finish") {
                     isProced = 2;
                     minPointer->change("start");
-                    breakCycle = 1;
-                    break;
+                    return isProced;
                 }
-
                 if (minPointer->getType() == "checked") {
                     minPointer->change("current");
                     previousCell = minPointer;
                 }
-
                 if (cell[i][j]->getType() == "start")
                     cell[i][j]->change("steped");
-                breakCycle = 1;
-                break;
+
+                return isProced;
             }
-            if (breakCycle)
-                break;
         }
     }
     return isProced;
 }
 
 int Window::onMouseRelease(sf::Mouse::Button button, int x, int y) {
+    if (x/size >= cols || y/size >= rows ||
+        x < 0 || y < 0) return 1;
     Cell *pointer;
     if ((pointer = cell[x/size][y/size]) != NULL) {
         if (button == sf::Mouse::Left) {
@@ -192,18 +200,10 @@ int Window::onKeyPressed(sf::Keyboard::Key key) {
     return 0;
 }
 
-int Window::onMousePress(sf::Mouse::Button button, int x, int y) {
-    /*Cell *pointer;
-    if ((pointer = cell[x/size][y/size]) != NULL) {
-        if (button == sf::Mouse::Right) {
-            pointer->change("wall");
-        }
-    }*/
-    return 0;
-}
-
 int Window::onMouse(int x, int y) {
     Cell *pointer;
+    if (x/size >= cols || y/size >= rows ||
+        x < 0 || y < 0) return 1;
     if ((pointer = cell[x/size][y/size]) != NULL) {
         std::string deletedType;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
